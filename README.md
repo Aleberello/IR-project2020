@@ -11,6 +11,7 @@ Activities log:
 3. [] Process basic searches
 4. [] Process advanced searches
 ***
-### Project dependencies
+### Project structure
+
 
 ### How to run
