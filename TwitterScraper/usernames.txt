@@ -1,0 +1,11 @@
+## Enter here, without line comment, the twitter usernames of the users from which extract the tweets
+
+# Group one - scientists
+# neiltyson
+# astrokatie
+# profbriancox
+
+## Group two - politicians
+BarackObama
+SpeakerPelosi
+JoeBiden
