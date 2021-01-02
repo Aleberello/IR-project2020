@@ -1,138 +1,98 @@
+import json
 from elasticsearch import Elasticsearch
 
-
+file = 'tweets/index_config.json'
 index_name = "twitter_index"
-index_config = {
-    "settings": {
-        "number_of_shards" : 1,
-        "number_of_replicas" : 1,
-        "analysis" : {
-            "analyzer" : {
-                "tweet_1" : {
-                "type" : "custom",
-                "tokenizer" : "standard",
-                "filter" : ["lowercase"]
-                },
-            "tweet_2" : {
-                "type" : "custom",
-                "tokenizer" : "standard",
-                "filter" : ["lowercase", "english_stop", "porter_stem"],
-                "char_filter" : ["html_strip"]
-                }
-            },
-            "filter" : {
-                "english_stop" : {"type": "stop", "Stopwords" : "_english_"}
-            }
-        }
-    },
-    "mappings": {
-        "properties" : {
-            "user_name" : {
-                "type": "text",
-                "analyzer" : "tweet_2",
-                "search_analyzer" : "tweet_2",
-                "similarity" : "boolean"
-            },
-            "date": {
-                "type": "text",
-                "analyzer" : "tweet_1",
-                "search_analyzer" : "tweet_1",
-                "similarity" : "boolean"
-            },
-            "tweet_id" : {
-                "type": "text",
-                "analyzer" : "tweet_1",
-                "search_analyzer" : "tweet_1",
-                "similarity" : "boolean"
-            },
-            "text" : {
-                "type": "text",
-                "analyzer" : "tweet_2",
-                "search_analyzer" : "tweet_2",
-                "similarity" : "boolean"
-            }
-        }
-    }
-}
+#index_config = json.load(file)
 
 class Corpus:
 
     def __init__(self):
-        return
+        return  
 
     @staticmethod
-    def getTweet(self, tweet):
+    def getCorpus(self, file_path):
+
         """
-        TODO(Add documentation)
+        Identifies and returns all the metadata inside a given corpus (for example tweet):
+        param file_path: the path of the file in JSON format (corpus);
+
+        return: a dictionary containing all the metadata.
         """
         user_name = None
         date = None
         tweet_id = None
         text = None
 
-        # Check for metadata inside a tweet
 
-        for metadata in tweet.split("\n"):
+        # Check for metadata inside the json file
+        for metadata in file_path:
             if text == None:
-                if metadata.startswith("+0000 "):
-                    date = metadata[len("+0000 "):].strip() # assign the date of the tweet
-                elif metadata.startswith("1341"):
-                    tweet_id = metadata[len("1341"):].strip() # assign the tweet id
-                elif metadata.startswith("@"):
-                    user_name = metadata[len("@"):].strip() # assign the username
-                else:
-                    text = metadata.strip() # assign the containing text
+                if "+0000" in metadata: 
+                    date = metadata["date"] # assign the date  
+                elif metadata.startswith("1", 0, 1): 
+                    tweet_id = metadata["tweet_id"] # assignt the id 
+                elif "@" in metadata:
+                    user_name = metadata["user_name"] # assign the username
+            else: text += metadata
+
             if user_name == None or date == None or tweet_id == None:
                 return
 
         doc = {
-            "user_name" : user_name,
-            "date" : date,
-            "tweet_id" : tweet_id,
-            "text" : text 
-        }
-
+            user_name,
+            date,
+            tweet_id,
+            text 
+            }
         return doc
 
+
     @staticmethod
-    def getMultipleTweets(self, corpus):
+    def getMultipleCorpus(self, corpus):
 
         """
-        TODO(Add Documentation)
+        Identifies all the available documents inside a dictionary and return them as a List.
+        param corpus: the corpus (document) object as a dictionary
+
+        return: a list of all documents
         """
         docs = 0
         allDocs = []
 
-        # if the tweet is empty
+        # if the corpus is empty
         with open(corpus) as input_doc:
             tweet = ""
+
             for line in input_doc:
-                if '' in line and len(tweet) > 0:
+                if '@' in line and len(tweet) > 0:
                     docs += 1
-                    allDocs.append(Corpus.getTweet(None, tweet))
-                    tweet = ""
+                    allDocs.append(Corpus.getCorpus(None, tweet))
+                    tweet = ''
                 else:
                     tweet += line
 
-            # if the tweet is available (there's already content)
-
+            # if the corpus is available (there's already content)
             if len(tweet)>0:
-                allDocs.append(Corpus.getTweet(None, tweet))
+                allDocs.append(Corpus.getCorpus(None, tweet))
 
         return allDocs
     
+    
     @staticmethod
-    def indexTweet(self, index_name, index_config, corpus):
+    def indexCorpus(self, index_name, index_config, corpus):
         """
-        TODO(Add documentation)
-        hint: corpus = Corpus.getMultipleTweets()
+        Indexes a document using ElasticSearch method. A matching query is used to retrieve 
+        param index_name: name of the index,  index_config: the configured mapping, corpus: the corpus (document) object as a dictionary
+        
+        return: results from the query
         """
 
         es = Elasticsearch()
 
         if es.indices.exists(index=index_name):
             es.indices.delete(index=index_name)
-        es.indices.create(index=index_name, body=inde])
+        else: es.indices.create(index=index_name, body=index_config)
 
         for doc in corpus:
             if doc != None:
@@ -149,3 +109,15 @@ class Corpus:
         })
 
         return results
+
+
+if __name__ == "__main__":
+
+    with open(file="tweets/index_config.json", mode='r') as path:
+        index_config = json.load(path)    
+    corpus = Corpus.getMultipleCorpus(None, 'tweets/group_one.json')
+    res = Corpus.indexCorpus(None, index_name, index_config, corpus)
+
+    for i in res:
+        print(i.values)
+    
