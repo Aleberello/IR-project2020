@@ -7,18 +7,24 @@
                 "tweet_1" : {
                 "type" : "custom",
                 "tokenizer" : "standard",
-                "filter" : ["lowercase"]
+                "filter" : ["lowercase", "word_delimiter_graph"]
                 },
             "tweet_2" : {
                 "type" : "custom",
                 "tokenizer" : "standard",
                 "filter" : ["lowercase", "english_stop", "porter_stem"],
-                "char_filter" : ["html_strip"]
+                "char_filter" : ["html_strip", "mapping", "pattern_replace"]
                 }
             },
             "filter" : {
                 "english_stop" : {"type": "stop", "Stopwords" : "_english_"}
             }
+        }
+    },
+    "normalizer": {
+        "tweet_normalizer": {
+            "type" : "custom",
+            "filter" : ["char_group", "lowercase"]
         }
     },
     "mappings": {
@@ -41,10 +47,23 @@
                 "type": "text",
                 "analyzer" : "tweet_2",
                 "search_analyzer" : "tweet_2",
-                "similarity" : "boolean"
+                "similarity" : "BM25"
             },
             "hashtags" : {
-                "type": "keyword"
+                "properties" : {
+                    "indices" : {
+                        "type" : "long"
+                    },
+                    "text" : {
+                        "fields": {
+                            "keyword": {
+                              "type": "keyword",
+                              "ignore_above": 256
+                            }
+                        }
+                    },
+                    "normalizer" : "tweet_normalizer"
+                }
             }
         }
     }
