@@ -1,0 +1,4 @@
+utils/api_key.py
+__pycache__/
+*.json
+.idea/
