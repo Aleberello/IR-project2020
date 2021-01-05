@@ -1,0 +1,51 @@
+{
+    "settings": {
+        "number_of_shards" : 1,
+        "number_of_replicas" : 1,
+        "analysis" : {
+            "analyzer" : {
+                "tweet_1" : {
+                "type" : "custom",
+                "tokenizer" : "standard",
+                "filter" : ["lowercase"]
+                },
+            "tweet_2" : {
+                "type" : "custom",
+                "tokenizer" : "standard",
+                "filter" : ["lowercase", "english_stop", "porter_stem"],
+                "char_filter" : ["html_strip"]
+                }
+            },
+            "filter" : {
+                "english_stop" : {"type": "stop", "Stopwords" : "_english_"}
+            }
+        }
+    },
+    "mappings": {
+        "dynamic" : "strict",
+        "properties" : {
+            "user_name" : {
+                "type": "text",
+                "analyzer" : "tweet_2",
+                "search_analyzer" : "tweet_2",
+                "similarity" : "boolean"
+            },
+            "date": {
+                "type": "date",
+                "format": "EEE MMM dd HH:mm:ss Z YYYY"
+            },
+            "tweet_id" : {
+                "type": "long"
+            },
+            "text" : {
+                "type": "text",
+                "analyzer" : "tweet_2",
+                "search_analyzer" : "tweet_2",
+                "similarity" : "boolean"
+            },
+            "hashtags" : {
+                "type": "keyword"
+            }
+        }
+    }
+}
