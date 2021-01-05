@@ -71,10 +71,10 @@ if __name__ == "__main__":
     dfile = './datasets/test.json'
     cfile = './index_config.json'
 
-    #indexing()
+    indexing()
 
     #basicQueries()
 
-    advancedQueries()
+    #advancedQueries()
 
     

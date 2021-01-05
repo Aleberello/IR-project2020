@@ -4,27 +4,22 @@
         "number_of_replicas" : 1,
         "analysis" : {
             "analyzer" : {
-                "tweet_1" : {
-                "type" : "custom",
-                "tokenizer" : "standard",
-                "filter" : ["lowercase", "word_delimiter_graph"]
-                },
-            "tweet_2" : {
-                "type" : "custom",
-                "tokenizer" : "standard",
-                "filter" : ["lowercase", "english_stop", "porter_stem"],
-                "char_filter" : ["html_strip", "mapping", "pattern_replace"]
+                "tweet" : {
+                    "type" : "custom",
+                    "tokenizer" : "standard",
+                    "filter" : ["lowercase", "english_stop", "porter_stem"],
+                    "char_filter" : ["html_strip"]
+                }
+            },
+            "normalizer": {
+                "tweet_normalizer": {
+                    "type" : "custom",
+                    "filter" : ["lowercase"]
                 }
             },
             "filter" : {
-                "english_stop" : {"type": "stop", "Stopwords" : "_english_"}
+                "english_stop" : {"type": "stop", "stopwords" : "_english_"}
             }
-        }
-    },
-    "normalizer": {
-        "tweet_normalizer": {
-            "type" : "custom",
-            "filter" : ["char_group", "lowercase"]
         }
     },
     "mappings": {
@@ -32,8 +27,8 @@
         "properties" : {
             "user_name" : {
                 "type": "text",
-                "analyzer" : "tweet_2",
-                "search_analyzer" : "tweet_2",
+                "analyzer" : "tweet",
+                "search_analyzer" : "tweet",
                 "similarity" : "boolean"
             },
             "date": {
@@ -45,25 +40,14 @@
             },
             "text" : {
                 "type": "text",
-                "analyzer" : "tweet_2",
-                "search_analyzer" : "tweet_2",
+                "analyzer" : "tweet",
+                "search_analyzer" : "tweet",
                 "similarity" : "BM25"
             },
             "hashtags" : {
-                "properties" : {
-                    "indices" : {
-                        "type" : "long"
-                    },
-                    "text" : {
-                        "fields": {
-                            "keyword": {
-                              "type": "keyword",
-                              "ignore_above": 256
-                            }
-                        }
-                    },
-                    "normalizer" : "tweet_normalizer"
-                }
+                "type": "keyword",
+                "ignore_above": 256,
+                "normalizer" : "tweet_normalizer"
             }
         }
     }

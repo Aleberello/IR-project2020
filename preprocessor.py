@@ -114,8 +114,8 @@ class Preprocessor:
 		:return: a list that contains all hashtags identified inside the text
 		'''
 		if not data[tweet]['hashtags'] == [None]:
-			self.freq_hashtags[data[tweet]['hashtags'][0][0]] += 1
-			return data[tweet]['hashtags'][0][0]
+			self.freq_hashtags[data[tweet]['hashtags'][0]] += 1
+			return data[tweet]['hashtags'][0]
 	
 	def parser(self):
 		'''
@@ -138,5 +138,5 @@ class Preprocessor:
 				
 		return self.tweets, self.freq_text, self.freq_user, self.freq_hashtags, self.freq_links, self.freq_emoji
 
-processor = Preprocessor(["datasets/group_one.json", "datasets/group_two.json"])
+processor = Preprocessor(["datasets/news_tweets.json"])
 processor.parser()
