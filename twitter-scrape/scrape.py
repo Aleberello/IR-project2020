@@ -137,6 +137,7 @@ class Scraper:
                     pass
                 tweets_dict.update({ id : {
                     'user_name': tw["user"]["name"],
+                    'screen_name': tw["user"]["screen_name"],
                     'date': tw["created_at"],
                     'tweet_id' : id,
                     'text': tw["full_text"],

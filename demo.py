@@ -68,7 +68,7 @@ def printRes(res):
 if __name__ == "__main__":
 
     index_name = 'twitter_index'
-    dfile = './datasets/test.json'
+    dfile = './datasets/news_tweets.json'
     cfile = './index_config.json'
 
     indexing()

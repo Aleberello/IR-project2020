@@ -39,7 +39,6 @@ class Preprocessor:
 		stop_words = nltk.corpus.stopwords.words('english')
 		functional_words = ["ADP", "AUX", "CCONJ", "DET", "NUM", "PART", "PRON", "SCONJ", "PUNCT", "SYM", "X"]
 		wordnet_lemmatizer = WordNetLemmatizer()
-		
 		text = data[tweet]['text']
 		new_text = text.lower()
 		new_text = re.sub(r'—|’|’’|-|”|“', ' ', new_text)

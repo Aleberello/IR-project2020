@@ -37,7 +37,7 @@ class Indexer:
                 tweets = json.load(o)
 
 
-        es = Elasticsearch()
+        es = Elasticsearch(hosts=["http://localhost:9200"])
 
         if es.indices.exists(index=self.index_name):
             es.indices.delete(index=self.index_name)

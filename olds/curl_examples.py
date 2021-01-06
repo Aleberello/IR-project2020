@@ -18,6 +18,7 @@ curl -X GET "localhost:9200/twitter_index/_search/?pretty" -H 'Content-Type: app
 # TESTING ANALYZER WITH PHRASES
 curl -X POST "localhost:9200/twitter_index/_analyze?pretty" -H 'Content-Type: application/json' -d'
 {
-  "analyzer": "twitter_1",
-  "text":     "The quick brown fox."
+  "analyzer": "tweet_text",
+  "text": "PA bakery claims cookie sales have predicted past presidential elections \u2014 and heres how it looks for 2020\n\nhttps://t.co/nuzkFp6c8Y https://t.co/Iumbj1JW3V"
+
 }'
