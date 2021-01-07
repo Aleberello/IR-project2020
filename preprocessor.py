@@ -5,14 +5,17 @@ import json
 import pandas as pd
 import nltk
 import pickle
+from os import path
+import numpy as np
 from nltk import word_tokenize, sent_tokenize, pos_tag
 from nltk.tokenize import WordPunctTokenizer, RegexpTokenizer
 from nltk.corpus import stopwords
 from nltk.stem.porter import PorterStemmer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from sklearn import preprocessing
 from collections import Counter, OrderedDict
-
+from operator import itemgetter
 
 # Da utilizzare solo per la prima esecuzione
 # nltk.download('stopwords')
@@ -37,7 +40,8 @@ class Preprocessor:
 	
 	def filter(self, text):
 		'''
-		Parse the text parameter, consists in following steps: lowercaps, filter it removing numbers, special characters, punctuation and text's tokenize.
+		Parse the text parameter, consists in following steps: lowercaps, filter it removing numbers, special 
+		characters, punctuation and text's tokenize.
 		Remove from it all tweet's element that are not word.
 		:param text: text of the tweet that must be filtered;
 		:return: the new_text filtered and POS tag associated with token
@@ -137,10 +141,12 @@ class Preprocessor:
 	
 	def parser(self):
 		'''
-		Transforms all the corpus in the filesName insert them into dictionary whit tweets ids as keys and their attributes as values
-		into a similar dictionary with more attributes for the same tweet as tokenized message, emojis, URLs, and user_id that are contained into original tweet.
+		Transforms all the corpus in the filesName insert them into dictionary whit tweets ids as keys and their 
+		attributes as values into a similar dictionary with more attributes for the same tweet as tokenized message, 
+		emojis, URLs, and user_id that are contained into original tweet.
 
-		:return: a list of dictionaries for each tweet, containing their id, author, original text, tokenized text, hashtags, user_ids, emoji, and URLs;
+		:return: a list of dictionaries for each tweet, containing their id, author, original text, tokenized text, 
+				 hashtags, user_ids, emoji, and URLs;
 				 five corpus_counter of the words, emoji, hashtags, URLs and user_ids and their corresponding frequencies.
 		'''
 		for file in self.fileNames:
@@ -161,18 +167,23 @@ class Preprocessor:
 				links = self.identify_links(tweet, self.data[tweet]['text'])
 				hashtags = self.identify_hashtags(tweet, self.data[tweet]['hashtags'])
 				user = self.identify_user(tweet, self.data[tweet]['text'])
-				self.tweets[self.data[tweet]['user_name']]['tweets'][tweet] = {'author': self.data[tweet]['user_name'],
-																			   'date': self.data[tweet]['date'],
-																		  'text': self.data[tweet]['text'],
-																		  'tokenized': tokenized, 'user': user,
-																		  'hashtags': hashtags, 'emoji': emoji,
-																		  'links': links}
+				self.tweets[self.data[tweet]['user_name']]['tweets'][tweet] = {
+					'author': self.data[tweet]['user_name'],
+					'date': self.data[tweet]['date'],
+					'text': self.data[tweet]['text'],
+					'tokenized': tokenized, 'user': user,
+					'hashtags': hashtags, 'emoji': emoji,
+					'links': links
+				}
+
 		for user in self.tweets:
-			self.tweets[user]['frequency'] = {'freq_text': self.freq_text,
-											  'freq_user': self.freq_user,
-											  'freq_hashtags': self.freq_hashtags,
-											  'freq_links': self.freq_links,
-											  'freq_emoji': self.freq_emoji}
+			self.tweets[user]['frequency'] = {
+				'freq_text': self.freq_text,
+				'freq_user': self.freq_user,
+				'freq_hashtags': self.freq_hashtags,
+				'freq_links': self.freq_links,
+				'freq_emoji': self.freq_emoji
+			}
 		
 		return self.tweets
 	
@@ -197,7 +208,7 @@ class Preprocessor:
 	def get_similarity_score(self, corpus, cnews):
 		'''
 		Compute and return similarity scores between user's tweets and news's tweets
-		:param corpus: user's tweet on whom will computed the tf-idf; cnews: news's text on whom will computed the tf-idf
+		:param corpus: user's tweet on whom will computed the tf-idf; cnews: news's text on whom will computed tf-idf
 		:return: dataframe who contain the similarity score between tweet
 		'''
 		
@@ -213,26 +224,38 @@ class Preprocessor:
 		
 		return Pnews
 	
-	def user_profile(self, news):
+	def personalize_query(self, news):
 		'''
 		Produce user_profile for each user and then filter news based on user_profile to personalize the search
 		:param news: news's text derived by Elasticsearch
 		:return: news's list with a new rank
 		'''
-		
+
+		# Try to retrive pre-calculated user profiles
+		pickle_path = './parser.pickle'
 		try:
-			self.tweets = pickle.load(open('parser.pickle', 'rb'))
-		
+			if path.exists(pickle_path):
+				self.tweets = pickle.load(open(pickle_path, 'rb'))
+				print("User profiles loaded correctly from " + pickle_path)
+
 		except:
+			print("User profiles tweets not yet pre-processed.")
 			a = self.parser()
-			pickle.dump(a, open('parser.pickle', 'wb'))
+			print("Saving preprocessed user profiles in " + pickle_path)
+			pickle.dump(a, open(pickle_path, 'wb'))
 		
 		personalized = {}
 		cnews = []
 		hnews = []
 		rex = re.compile(r'@(\S+)')
+
+
+		# Elasticsearch scores normalization between 0 and 1
+		scores = [n['_score'] for n in news['hits']['hits']]
+		scores_r = preprocessing.minmax_scale(scores)
 		
-		for n in news['hits']['hits']:
+		for idx, n in enumerate(news['hits']['hits']):
+			n['_score']=scores_r[idx]
 			us = ""
 			cnews.append(n['_source']['text'])
 			match_pattern = rex.findall(n['_source']['text'])
@@ -241,6 +264,7 @@ class Preprocessor:
 				hnews.append(us)
 			if len(match_pattern) < 1:
 				hnews.append(" ")
+
 		
 		for user in self.tweets:
 			st = ""
@@ -258,14 +282,16 @@ class Preprocessor:
 			Pnews = self.get_similarity_score(corpus, cnews)
 			Hnews = self.get_similarity_score(corpus2, hnews)
 			
+			# Personalized scoring
 			filtered = news['hits']['hits']
-			i = 0
-			for n in filtered:
-				n['new_score'] = 0.2 * n['_score'] + 0.3 * Pnews['score'][i] + 0.5 * Hnews['score'][i]
-				i += 1
+			for i, n in enumerate(filtered):
+				n['new_score'] = np.around(0.2 * n['_score'] + 0.3 * Pnews['score'][i] + 0.5 * Hnews['score'][i], 
+											decimals=6)
+
 			
-			from operator import itemgetter
+			# Re-ranking Elasticsearch query results
 			ordered = sorted(filtered, key=itemgetter('new_score'), reverse=True)
 			personalized[user] = {'news': ordered}
 		
 		return personalized
+

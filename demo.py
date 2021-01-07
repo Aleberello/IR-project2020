@@ -1,80 +1,130 @@
-from indexer import Indexer
-from elasticsearch import Elasticsearch
+#!/usr/bin/env python3
+
+from indexer import indexDocuments
 from utils import *
+from preprocessor import *
+
+from elasticsearch import Elasticsearch
 
 
-## ELASTICSEARCH INDEX CREATION FOR NEWS TWEETS
-def indexing(): 
-
-    pprint(r("PHASE 1 - ES INDEX CREATION"))
-    index = Indexer(dfile, cfile, index_name)
-    index.indexCorpus()
-
-
-
-## BASIC QUERIES
 def basicQueries():
 
-    pprint(r("PHASE 2 - BASIC QUERIES"))
-    res = search(index_name, query={"user_name": "Tyson"})
-    printRes(res)
+    def search(index, query=None, n_res=10):
+        es = Elasticsearch()
+        res = es.search(index=index_name, body={
+            "query" : query
+        }, size=n_res)
+
+        pprint(g("%d documents found, showing the first %d" % (res['hits']['total']['value'], n_res)))
+        printRes(res)
+        return res
 
 
+    pprint(r("BASIC QUERIES DEMO"))
 
-## USER PROFILE EXTRACTION
-def extractUserProfile():
+    ## User case 1 - Textual search on a specific field using keywords
 
-    pprint(r("PHASE 3 - USER PROFILE EXTRACTION"))
+    # Query 1 - ...
+    search(index_name, query={
+                "match" : {
+                    "text" : "nolan"
+                }})
+
+    search(index_name, query={
+                "match_phrase" : {
+                    "text" : "Nolan film's"
+                }})    
+
+
+    ## User case 2 - Textual search on a combination of fields
+    search(index_name, query={
+                "bool": {
+                    "must": [
+                        {"match": {"screen_name" : "newscientist"}},
+                        {"match": {"text" : "insect"}}
+                    ]
+                }})
+
+    # Range query example midnight on New Year's Eve
+    search(index_name, query={
+            "range": {
+                "date" : {
+                    "gt" : "Thu Dec 31 23:45:00 +0000 2020",
+                    "lte" : "Fri Jan 01 01:00:00 +0000 2021"                    
+                }
+            }})
+
     
 
 
 
-## ADVANCED QUERIES WITH USER PROFILE
-def advancedQueries():
+def advancedQueries(profiles):
 
-    pprint(r("PHASE 4 - ADVANCED QUERIES"))
+    def search(index, query=None, n_res=10):
+        es = Elasticsearch()
+        res = es.search(index=index_name, body={
+            "query" : query
+        }, size=n_res)
 
-    # effettuo query
-    res = search(index_name, query={"user_name": "Tyson"})
+        pprint(g("%d documents found, showing the first %d" % (res['hits']['total']['value'], n_res)))
+        return res
 
-    import pdb; pdb.set_trace()
 
-    # re-rank tramite calcolo similarità tra user profile e risultati query
+    pprint(r("ADVANCED QUERIES DEMO"))
 
-    # stampa dei risultati
+    ## User case 3 - Rank the tweets taking into account the user profile
+    query_res = search(index_name, query={
+                    "match" : {
+                        "text" : "nolan"
+                    }})
+
+    personalized_res = profiles.personalize_query(query_res)
+
+    printResAdv(personalized_res)
+
+
+    ## User case 4 - Expand the search adding synonyms of the words in the query
 
 
 
 
 ## UTILS FUNCTION
-def search(index, query=None, n_res=10):
-    es = Elasticsearch()
-    res = es.search(index=index_name, body={
-        "query" : {
-            "match" : query
-        }
-    }, size=n_res)
-
-    pprint(g("%d documents found" % res['hits']['total']['value']))
-    return res
-
 def printRes(res):
     for doc in res['hits']['hits']:
-        print("Tweet ID: " + y(doc['_id']) + "\nUser: " + g(doc['_source']['user_name']) + "\nText: " 
-                + doc['_source']['text'] + '\n')
+        print(y("Tweet ID: ") + doc['_id'] + 
+                g("\nUser: ") + doc['_source']['user_name'] +
+                g("\nCreated at: ") + doc['_source']['date'] +
+                g("\nText: ") + doc['_source']['text'] + 
+                r("\nScore: ") + str(doc['_score']) + "\n")
 
+def printResAdv(res):
+    for usr in res:
+        print('User name: ' + usr)
+        for doc in res[usr]['news']:
+            print(y("Tweet ID: ") + doc['_id'] + 
+                    g("\nUser: ") + doc['_source']['user_name'] +
+                    g("\nCreated at: ") + doc['_source']['date'] +
+                    g("\nText: ") + doc['_source']['text'] + 
+                    r("\nPersonalized score: ") + str(doc['new_score']) + "\n")
 
 
 if __name__ == "__main__":
 
+    ## ES parameters for indexing data
     index_name = 'twitter_index'
-    dfile = './datasets/news_tweets.json'
-    cfile = './index_config.json'
+    data_path = './datasets/news_tweets.json'
+    config_path = './index_config.json'
 
-    indexing()
+    ## Index document specified in ES server, only the first time
+    #indexDocuments(data_path, config_path, index_name)
 
+    ## Basic queries on Elasticsearch
     #basicQueries()
 
-    #advancedQueries()
+    ## Users profiles extraction providing set of tweets
+    users_tweets_path = "./datasets/group_one.json"
+    user_profiles = Preprocessor(users_tweets_path)
 
+    ## Avanced queries using users profiles for personalization
+    advancedQueries(user_profiles)
     

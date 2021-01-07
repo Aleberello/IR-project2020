@@ -5,51 +5,47 @@ from elasticsearch import Elasticsearch
 from elasticsearch.helpers import streaming_bulk
 from utils import *
 
-class Indexer:
 
-    def __init__(self, datapath, configpath, index_name):
-        self.index_name = index_name 
-        self.config_path = configpath
-        self.data_path = datapath
+def indexDocuments(data_path, config_path, index_name="my-index"):
+    """
+    Indexes a document using python library for ElasticSearch.
+    Parameters
+    ----------
+    data_path : str
+        JSON file location of documents to index.
+    config_path : str
+        HSON file location of index settings and mappings.
+    index_name : str
+        Name of index (default is 'my-index').
+    """
 
-
-    def indexCorpus(self):
-        """
-        Indexes a document using ElasticSearch method. 
-        param index_name: name of the index,  index_config: the configured mapping, corpus: the corpus (document) object as a dictionary
-        
-        return: results from the query
-        """
-
-        def genData():
-            for tweet in tweets:
-                yield tweets[tweet]
+    def genData():
+        for tweet in tweets:
+            yield tweets[tweet]
 
 
-        # Load a JSON mapping file for elasticsearch indexing
-        if path.exists(self.config_path):
-            with open(file=self.config_path, encoding='utf-8') as p:
-                index_config = json.load(p)
+    # Load a JSON mapping file for elasticsearch indexing
+    if path.exists(config_path):
+        with open(file=config_path, encoding='utf-8') as p:
+            index_config = json.load(p)
 
-        # Load twitter dataset
-        if path.exists(self.data_path):
-            with open(self.data_path) as o:
-                tweets = json.load(o)
+    # Load JSON with documents
+    if path.exists(data_path):
+        with open(data_path) as o:
+            tweets = json.load(o)
 
+    es = Elasticsearch(hosts=["http://localhost:9200"])
 
-        es = Elasticsearch(hosts=["http://localhost:9200"])
+    if es.indices.exists(index=index_name):
+        es.indices.delete(index=index_name)
+    es.indices.create(index=index_name, body=index_config)
 
-        if es.indices.exists(index=self.index_name):
-            es.indices.delete(index=self.index_name)
-        es.indices.create(index=self.index_name, body=index_config)
-
-        pprint("Indexing documents...")
-        progress = tqdm.tqdm(unit="docs", total=len(tweets))
-        successes = 0
-        for ok, action in streaming_bulk(
-            client=es, index=self.index_name, actions=genData(),
-        ):
-            progress.update(1)
-            successes += ok
-        pprint("Indexed %d/%d documents" % (successes, len(tweets)))
-        
+    pprint("Indexing documents...")
+    progress = tqdm.tqdm(unit="docs", total=len(tweets))
+    successes = 0
+    for ok, action in streaming_bulk(
+        client=es, index=index_name, actions=genData(),
+    ):
+        progress.update(1)
+        successes += ok
+    pprint("Indexed %d/%d documents" % (successes, len(tweets)))
