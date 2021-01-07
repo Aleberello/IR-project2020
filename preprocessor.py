@@ -5,6 +5,12 @@ import re
 import string
 from nltk.tokenize import WordPunctTokenizer
 from collections import Counter
+import numpy as np
+import time
+import re
+import string
+from nltk.tokenize import WordPunctTokenizer
+from collections import Counter
 import nltk
 from nltk.tokenize import WordPunctTokenizer
 from nltk.tokenize import word_tokenize, sent_tokenize
@@ -12,6 +18,7 @@ from nltk import pos_tag
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
 from collections import Counter
+from collections import OrderedDict
 import emoji
 import json
 from elasticsearch import Elasticsearch
@@ -27,6 +34,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.metrics.pairwise import cosine_similarity,cosine_distances
 import pickle
+from nltk.stem.porter import PorterStemmer
 
 #Da utilizzare solo per la prima esecuzione
 #nltk.download('stopwords')
@@ -53,7 +61,6 @@ class Preprocessor:
 		stopwords.words('english')
 		stop_words = nltk.corpus.stopwords.words('english')
 		functional_words = ["ADP", "AUX", "CCONJ", "DET", "NUM", "PART", "PRON", "SCONJ", "PUNCT", "SYM", "X"]
-		wordnet_lemmatizer = WordNetLemmatizer()
 		
 		text = data[tweet]['text']
 		new_text = text.lower()
@@ -62,13 +69,16 @@ class Preprocessor:
 		new_text = re.sub(r'\d+', '', new_text)
 		new_text = new_text.translate(str.maketrans('', '', string.punctuation))
 		new_text = WordPunctTokenizer().tokenize(new_text)
+		porter = PorterStemmer()
 		
 		tagged = nltk.pos_tag(new_text)
 		for word in tagged:
 			if word[0] not in stop_words and word[1] not in functional_words:
-				lemma = wordnet_lemmatizer.lemmatize(word[0], pos="v")
+				lemma = porter.stem(word[0])
 				if lemma not in stop_words:
 					self.freq_text[data[tweet]['user_name']][lemma] += 1
+					new_text.remove(word[0])
+					new_text.append(lemma)
 			else:
 				new_text.remove(word[0])
 		return new_text
@@ -128,7 +138,7 @@ class Preprocessor:
 		:return: a list that contains all hashtags identified inside the text
 		'''
 		if not data[tweet]['hashtags'] == [None]:
-			for i in data[tweet]['hashtags']:
+			for i in data[tweet]['hashtags'][0]:
 				self.freq_hashtags[data[tweet]['user_name']][i] += 1
 			return data[tweet]['hashtags']
 	
@@ -174,28 +184,26 @@ class Preprocessor:
 	def preprocess_text(self, text):
 		stopwords.words('english')
 		stop_words = nltk.corpus.stopwords.words('english')
+		porter = PorterStemmer()
 		functional_words = ["ADP", "AUX", "CCONJ", "DET", "NUM", "PART", "PRON", "SCONJ", "PUNCT", "SYM", "X"]
 		
-		# 1. Tokenise to alphabetic tokens
 		new_text=re.sub('http\S+', '', text)
 		new_text= re.sub('@[^\s]+', '', new_text)
+		new_text = text.lower()
 		new_text = re.sub(r'—|’|’’|-|”|“|‘', ' ', new_text)
-		new_text = re.sub(r'\d+', '', new_text)
 		new_text = new_text.strip()
+		new_text = re.sub(r'\d+', '', new_text)
 		new_text = new_text.translate(str.maketrans('', '', string.punctuation))
-		tokens = WordPunctTokenizer().tokenize(new_text)
-		
-		
-		# 2. Lowercase and lemmatise
-		lemmatiser = WordNetLemmatizer()
-		new_text = [lemmatiser.lemmatize(t.lower(), pos='v') for t in tokens]
+		new_text = WordPunctTokenizer().tokenize(new_text)
 		
 		
 		tagged = nltk.pos_tag(new_text)
 		for word in tagged:
 			if word[0] in stop_words or word[1] in functional_words:
 				new_text.remove(word[0])
-		
+			else:
+				new_text.remove(word[0])
+				new_text.append(porter.stem(word[0]))
 		return new_text
 	
 	def user_profile(self, news):
@@ -209,64 +217,60 @@ class Preprocessor:
 		personalized = {}
 		cnews=[]
 		hnews=[]
+		rex = re.compile(r'@(\S+)')
+		
 		for n in news['hits']['hits']:
+			us= ""
 			cnews.append(n['_source']['text'])
-			if not n['_source']['hashtags'] == None:
-				hnews.append(n['_source']['hashtags'])
+			match_pattern = rex.findall(n['_source']['text'])
+			for u in match_pattern:
+				us += " " + u
+				hnews.append(us)
+			if len(match_pattern)<1:
+				hnews.append(" ")
 			
 		
 		for user in self.tweets:
 			st = ""
-			#hg = ""
+			hg = ""
 			
 			for tweet in self.tweets[user]['tweets']:
 				st += " " + self.tweets[user]['tweets'][tweet]['text']
-				
-				#if not self.tweets[user]['tweets'][tweet]['hashtags'] == [None]:
-				#	hg += " " + self.tweets[user]['tweets'][tweet]['hashtags']
+				users= self.tweets[user]['tweets'][tweet]['user']
+				for u in users:
+					hg += " " + u
 		
 			vectoriser = TfidfVectorizer(analyzer=self.preprocess_text, min_df=0.01)
-			#vectoriser2 = TfidfVectorizer(analyzer=self.preprocess_text, min_df=0.01)
+			vectoriser2 = TfidfVectorizer(analyzer=self.preprocess_text, min_df=0.01)
 			
 			corpus = [st]
-			#corpus2 = [hg]
+			corpus2 = [hg]
 			
 			X = vectoriser.fit_transform(corpus)
 			Y = vectoriser.transform(cnews)
 			
-			#X2 = vectoriser2.fit_transform(corpus2)
-			#Y2 = vectoriser2.fit_transform(news)
+			X2 = vectoriser2.fit_transform(corpus2)
+			Y2 = vectoriser2.transform(hnews)
 			
 			similarity = cosine_similarity(X, Y)
-			#similarity2 = cosine_similarity(X2, Y2)
-			#similarity2= 2*np.array(similarity2)
+			similarity2 = cosine_similarity(X2, Y2)
+			
 			
 			Pnews= pd.DataFrame(Y.toarray())
-			#hashtags= pd.DataFrame(Y2.toArray())
+			Hnews= pd.DataFrame(Y2.toarray())
 			
 			Pnews['score']= similarity[0]
-			#hashtags['score']= similarity2[0]
-			user_news=[]
+			Hnews['score']= similarity2[0]
+			
+			filtered= news['hits']['hits']
 			i=0
-			while i < len(Pnews['score']):
-				if Pnews['score'][i] > 0.14:
-					user_news.append(i)
+			for n in filtered:
+				n['new_score']= 0.2*n['_score']+0.3*Pnews['score'][i]+0.5*Hnews['score'][i]
 				i+=1
-			y=0
-			filtered=[]
-			for n in news['hits']['hits']:
-				if y in user_news:
-					filtered.append(n)
-				y+=1
 				
 			
-			#, 'hashtags': similarity2
-			
-			personalized[user]={'news': filtered}
-			#feature_names = vectoriser.get_feature_names()
-			# dense = X.todense()
-			# denselist = dense.tolist()
-			# print(pd.DataFrame(denselist, columns=feature_names))
-		 
+			from operator import itemgetter
+			ordered = sorted(filtered, key=itemgetter('new_score'), reverse=True)
+			personalized[user]={'news': ordered}
 	
 		return personalized
