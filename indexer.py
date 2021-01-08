@@ -3,7 +3,7 @@ import tqdm
 from os import path
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import streaming_bulk
-from utils import *
+from utils.utils import *
 
 
 def indexDocuments(data_path, config_path, index_name="my-index"):

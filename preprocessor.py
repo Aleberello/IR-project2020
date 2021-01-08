@@ -17,9 +17,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn import preprocessing
 from collections import Counter, OrderedDict
 from operator import itemgetter
-from utils import *
+from utils.utils import *
 
-# Da utilizzare solo per la prima esecuzione
+# Need to be downloaded only once at the first execution
 # nltk.download('stopwords')
 # nltk.download('wordnet')
 # nltk.download('averaged_perceptron_tagger')
@@ -63,7 +63,7 @@ class Preprocessor:
 	
 	def generate_tokens(self, tweet, text):
 		'''
-		Creates a unique set of tokens that were identified after processing, filtering and lemmatize the corpus text.:
+		Creates a unique set of tokens that were identified after processing, filtering and lemmatize the corpus text.
 		Remove from it functional and stop words and execute stemming's operation for each word.
 		:param tweet: tweet id to identify the corresponding tweet and the corresponding text;
 		:return: a list that contains the parsed text
@@ -148,8 +148,8 @@ class Preprocessor:
 		emojis, URLs, and user_id that are contained into original tweet.
 
 		:return: a list of dictionaries for each tweet, containing their id, author, original text, tokenized text, 
-				 hashtags, user_ids, emoji, and URLs;
-				 five corpus_counter of the words, emoji, hashtags, URLs and user_ids and their corresponding frequencies.
+			hashtags, user_ids, emoji, and URLs;
+			Five corpus_counter of the words, emoji, hashtags, URLs and user_ids and their corresponding frequencies.
 		'''
 		for file in self.fileNames:
 			self.data = json.load(open(file))
@@ -192,7 +192,7 @@ class Preprocessor:
 	
 	def preprocess_text(self, text):
 		'''
-		Creates a unique set of tokens that were identified after processing, filtering and lemmatize the corpus text.:
+		Creates a unique set of tokens that were identified after processing, filtering and lemmatize the corpus text.
 		Remove from it functional and stop words and execute stemming's operation for each word.
 		:param text: tweet's text;
 		:return: a list that contains the parsed text
@@ -210,8 +210,10 @@ class Preprocessor:
 	
 	def get_similarity_score(self, corpus, cnews, vectoriser):
 		'''
-		Compute and return similarity scores between user's tweets and news's tweets
-		:param corpus: user's tweet on whom will computed the tf-idf; cnews: news's text on whom will computed tf-idf
+		Compute and return similarity scores between two corpus.
+		:param corpus: user's tweet or mentions on whom will computed the tf-idf; 
+		:param cnews: news's text or mentions on whom will computed tf-idf;
+		:param vectoriser: fitted tf-idf vectorizer for transform input corpus;
 		:return: dataframe who contain the similarity score between tweet
 		'''
 
@@ -228,43 +230,41 @@ class Preprocessor:
 	def personalize_query(self, news, sp_user):
 		'''
 		Produce user_profile for each specified user and then filter news based on user_profile to personalize the search
-		:param news: news's text derived by Elasticsearch
-		:param sp_user: list of users to wich costumize search containing (if empty return all users personalization)
-		:return: news's list with a new rank
+		:param news: news's text derived by Elasticsearch;
+		:param sp_user: list of users to wich personalize search (if empty return all users personalization);
+		:return: re-ranked news's list with user personalization.
 		'''
 
-		# If sp_user list is empty, return personalization for all user in user self.tweets
+		# If sp_user list is empty, return personalization for all user avaiable in dataset
 		retr_all = False
 		if not sp_user:
 			retr_all = True
 
-		
-
-		# Try to retrive pre-processed user profiles tweets
+		# Try to retrive pre-processed user tweets from dataset
 		pickle_path = './utils/user-profiles/' + '&'.join(sum(
 			[re.findall(r'[^\/]+(?=\.)', test) for test in self.fileNames],[])) + '.pickle'
 		
 		try:
 			self.tweets = pickle.load(open(pickle_path, 'rb'))
-			print("User profiles loaded correctly from " + pickle_path)
-
+			print("User profiles loaded correctly from " + y(pickle_path))
 		except:
 			print("User profiles tweets not yet pre-processed.")
 			a = self.parser()
-			print("Saving preprocessed user profiles in " + pickle_path)
+			print("Saving preprocessed user profiles in " + y(pickle_path))
 			os.makedirs(os.path.dirname(pickle_path), exist_ok=True)
 			pickle.dump(a, open(pickle_path, 'wb'))
 		
+
 		personalized = {}
 		cnews = []
-		hnews = []
+		mnews = []
 		rex = re.compile(r'@(\S+)')
-
 
 		# Elasticsearch scores normalization between 0 and 1
 		scores = [n['_score'] for n in news['hits']['hits']]
 		scores_r = preprocessing.minmax_scale(scores)
 		
+		# Extraction of news tweets text and mentions
 		for idx, n in enumerate(news['hits']['hits']):
 			n['_score']=scores_r[idx]
 			us = ""
@@ -272,11 +272,12 @@ class Preprocessor:
 			match_pattern = rex.findall(n['_source']['text'])
 			for u in match_pattern:
 				us += " " + u
-				hnews.append(us)
+				mnews.append(us)
 			if len(match_pattern) < 1:
-				hnews.append(" ")
+				mnews.append(" ")
 
 
+		# Personalization for each specified user in sp_user parameter
 		for user in self.tweets['tweets']:
 			if (user in sp_user) or retr_all:
 
@@ -289,25 +290,24 @@ class Preprocessor:
 					for u in users:
 						hg += " " + u
 
-				corpus = [st]
-				corpus_m = [hg]
+				corpus = [st]  # string containing specified user tweets text
+				corpus_m = [hg] # string containing specified user tweets mentions
 				
-				# Try to retrive pre-calculated user profiles vectorizer
+				# Try to retrive pre-fitted tf-idf user profiles vectorizer
 				vectoriser_path_text = './utils/user-profiles/' + user.replace(" ", "") + '/vect_text.pickle'
 				vectoriser_path_ment = './utils/user-profiles/' + user.replace(" ", "") + '/vect_mentions.pickle'
 				try:
 					vect_t_fit = pickle.load(open(vectoriser_path_text, 'rb'))
 					vect_m_fit = pickle.load(open(vectoriser_path_ment, 'rb'))
-					print("User profile vectorizer loaded.")
-
+					print("User profile %s tf-idf vectorizer loaded." % y(user))
 				except:
-					print("User profile vectorizer not yet pre-processed.")
+					print("User profile tf-idf vectorizer not yet pre-processed.")
 					vectoriser_t = TfidfVectorizer(analyzer=self.preprocess_text, min_df=0.01)
 					vectoriser_m = TfidfVectorizer(analyzer=self.preprocess_text, min_df=0.01)
 
 					vect_t_fit = vectoriser_t.fit(corpus)
 					vect_m_fit = vectoriser_m.fit(corpus_m)
-					print("Saving profile vectorizer in " + vectoriser_path_text)
+					print("Saving profile tf-idf vectorizer in " + vectoriser_path_text)
 					os.makedirs(os.path.dirname(vectoriser_path_text), exist_ok=True)
 					os.makedirs(os.path.dirname(vectoriser_path_ment), exist_ok=True)
 					pickle.dump(vect_t_fit, open(vectoriser_path_text, 'wb'))
@@ -316,12 +316,12 @@ class Preprocessor:
 
 				# Computes similarity scores
 				Pnews = self.get_similarity_score(corpus, cnews, vect_t_fit)
-				Hnews = self.get_similarity_score(corpus_m, hnews, vect_m_fit)
+				mnews = self.get_similarity_score(corpus_m, mnews, vect_m_fit)
 				
 				# Personalized scoring
 				filtered = news['hits']['hits']
 				for i, n in enumerate(filtered):
-					n['new_score'] = np.around(0.2 * n['_score'] + 0.3 * Pnews['score'][i] + 0.5 * Hnews['score'][i], 
+					n['new_score'] = np.around(0.2 * n['_score'] + 0.3 * Pnews['score'][i] + 0.5 * mnews['score'][i], 
 												decimals=6)
 
 				
@@ -335,4 +335,3 @@ class Preprocessor:
 			sys.exit()
 		
 		return personalized
-
