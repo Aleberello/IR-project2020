@@ -2,7 +2,7 @@
 
 from indexer import indexDocuments
 from utils import *
-from preprocessor import *
+from preprocessor import Preprocessor
 
 from elasticsearch import Elasticsearch
 
@@ -78,7 +78,10 @@ def advancedQueries(profiles):
                         "text" : "nolan"
                     }})
 
-    personalized_res = profiles.personalize_query(query_res)
+    # If user list is empty personalize_query retrive the search personalized for each user in dataset, else it provides
+    # personalization for only the user specified.
+    user = []
+    personalized_res = profiles.personalize_query(query_res, user)
 
     printResAdv(personalized_res)
 
@@ -99,7 +102,7 @@ def printRes(res):
 
 def printResAdv(res):
     for usr in res:
-        print('User name: ' + usr)
+        pprint('Personalized results for user: ' + usr)
         for doc in res[usr]['news']:
             print(y("Tweet ID: ") + doc['_id'] + 
                     g("\nUser: ") + doc['_source']['user_name'] +
@@ -122,7 +125,7 @@ if __name__ == "__main__":
     #basicQueries()
 
     ## Users profiles extraction providing set of tweets
-    users_tweets_path = "./datasets/group_one.json"
+    users_tweets_path = ["./datasets/test.json"]
     user_profiles = Preprocessor(users_tweets_path)
 
     ## Avanced queries using users profiles for personalization

@@ -5,6 +5,7 @@ import json
 import pandas as pd
 import nltk
 import pickle
+import sys
 from os import path
 import numpy as np
 from nltk import word_tokenize, sent_tokenize, pos_tag
@@ -16,6 +17,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn import preprocessing
 from collections import Counter, OrderedDict
 from operator import itemgetter
+from utils import *
 
 # Da utilizzare solo per la prima esecuzione
 # nltk.download('stopwords')
@@ -46,8 +48,8 @@ class Preprocessor:
 		:param text: text of the tweet that must be filtered;
 		:return: the new_text filtered and POS tag associated with token
 		'''
-		new_text = re.sub('http\S+', '', text)
-		new_text = re.sub('@[^\s]+', '', new_text)
+		new_text = re.sub(r'http\S+', '', text)
+		new_text = re.sub(r'@[^\s]+', '', new_text)
 		new_text = new_text.lower()
 		new_text = re.sub(r'—|’|’’|-|”|“|‘', ' ', new_text)
 		new_text = new_text.strip()
@@ -149,7 +151,7 @@ class Preprocessor:
 				 hashtags, user_ids, emoji, and URLs;
 				 five corpus_counter of the words, emoji, hashtags, URLs and user_ids and their corresponding frequencies.
 		'''
-				for file in self.fileNames:
+		for file in self.fileNames:
 			self.data = json.load(open(file))
 			for tweet in self.data:
 				if not self.data[tweet]['user_name'] in self.freq_text:
@@ -166,18 +168,25 @@ class Preprocessor:
 				links = self.identify_links(tweet, self.data[tweet]['text'])
 				hashtags = self.identify_hashtags(tweet, self.data[tweet]['hashtags'])
 				user = self.identify_user(tweet, self.data[tweet]['text'])
-				self.tweets['tweets'][self.data[tweet]['user_name']][tweet] = {'author': self.data[tweet]['user_name'],
-																			   'date': self.data[tweet]['date'],
-																		  'text': self.data[tweet]['text'],
-																		  'tokenized': tokenized, 'user': user,
-																		  'hashtags': hashtags, 'emoji': emoji,
-																		  'links': links}
-		
-		self.tweets['frequency']= {'freq_text': self.freq_text,
-								  'freq_user': self.freq_user,
-								  'freq_hashtags': self.freq_hashtags,
-								  'freq_links': self.freq_links,
-								  'freq_emoji': self.freq_emoji}
+
+				self.tweets['tweets'][self.data[tweet]['user_name']][tweet] = {
+					'author': self.data[tweet]['user_name'],
+					'screen_name': self.data[tweet]['screen_name'],
+					'date': self.data[tweet]['date'],
+					'text': self.data[tweet]['text'],
+					'tokenized': tokenized, 'user': user,
+					'hashtags': hashtags, 'emoji': emoji,
+					'links': links
+				}
+
+
+		self.tweets['frequency'] = {
+			'freq_text': self.freq_text,
+			'freq_user': self.freq_user,
+			'freq_hashtags': self.freq_hashtags,
+			'freq_links': self.freq_links,
+			'freq_emoji': self.freq_emoji
+		}
 		
 		return self.tweets
 	
@@ -218,19 +227,27 @@ class Preprocessor:
 		
 		return Pnews
 	
-	def personalize_query(self, news):
+	def personalize_query(self, news, sp_user):
 		'''
-		Produce user_profile for each user and then filter news based on user_profile to personalize the search
+		Produce user_profile for each specified user and then filter news based on user_profile to personalize the search
 		:param news: news's text derived by Elasticsearch
+		:param sp_user: list of users to wich costumize search containing (if empty return all users personalization)
 		:return: news's list with a new rank
 		'''
 
+		# If sp_user list is empty, return personalization for all user in user self.tweets
+		retr_all = False
+		if not sp_user:
+			retr_all = True
+
+		
+
 		# Try to retrive pre-calculated user profiles
-		pickle_path = './parser.pickle'
+		pickle_path = './' + '&'.join(sum([re.findall(r'[^\/]+(?=\.)', test) for test in self.fileNames],[])) + '.pickle'
+		import pdb; pdb.set_trace()
 		try:
-			if path.exists(pickle_path):
-				self.tweets = pickle.load(open(pickle_path, 'rb'))
-				print("User profiles loaded correctly from " + pickle_path)
+			self.tweets = pickle.load(open(pickle_path, 'rb'))
+			print("User profiles loaded correctly from " + pickle_path)
 
 		except:
 			print("User profiles tweets not yet pre-processed.")
@@ -259,33 +276,40 @@ class Preprocessor:
 			if len(match_pattern) < 1:
 				hnews.append(" ")
 
-		
+
 		for user in self.tweets['tweets']:
-			st = ""
-			hg = ""
+			if (user in sp_user) or retr_all:
 
-			for tweet in self.tweets['tweets'][user]:
-				st += " " + self.tweets['tweets'][user][tweet]['text']
-				users = self.tweets['tweets'][user][tweet]['user']
-				for u in users:
-					hg += " " + u
-			
-			corpus = [st]
-			corpus2 = [hg]
-			
-			Pnews = self.get_similarity_score(corpus, cnews)
-			Hnews = self.get_similarity_score(corpus2, hnews)
-			
-			# Personalized scoring
-			filtered = news['hits']['hits']
-			for i, n in enumerate(filtered):
-				n['new_score'] = np.around(0.2 * n['_score'] + 0.3 * Pnews['score'][i] + 0.5 * Hnews['score'][i], 
-											decimals=6)
+				st = ""
+				hg = ""
+				
+				for tweet in self.tweets['tweets'][user]:
+					st += " " + self.tweets['tweets'][user][tweet]['text']
+					users = self.tweets['tweets'][user][tweet]['user']
+					for u in users:
+						hg += " " + u
+				
+				corpus = [st]
+				corpus2 = [hg]
+				
+				Pnews = self.get_similarity_score(corpus, cnews)
+				Hnews = self.get_similarity_score(corpus2, hnews)
+				
+				# Personalized scoring
+				filtered = news['hits']['hits']
+				for i, n in enumerate(filtered):
+					n['new_score'] = np.around(0.2 * n['_score'] + 0.3 * Pnews['score'][i] + 0.5 * Hnews['score'][i], 
+												decimals=6)
 
-			
-			# Re-ranking Elasticsearch query results
-			ordered = sorted(filtered, key=itemgetter('new_score'), reverse=True)
-			personalized[user] = {'news': ordered}
+				
+				# Re-ranking Elasticsearch query results
+				ordered = sorted(filtered, key=itemgetter('new_score'), reverse=True)
+				personalized[user] = {'news': ordered}
+
+
+		if not personalized:
+			print(r("ERROR: ") + "Usernames provided not found in tweet dataset.")
+			sys.exit()
 		
 		return personalized
 
