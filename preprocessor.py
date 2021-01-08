@@ -137,7 +137,7 @@ class Preprocessor:
 		:return: a list that contains all hashtags identified inside the text
 		'''
 		if not hashtags == [None]:
-			for i in self.data[tweet]['hashtags'][0]:
+			for i in self.data[tweet]['hashtags']:
 				self.freq_hashtags[self.data[tweet]['user_name']][i] += 1
 			return self.data[tweet]['hashtags']
 	
