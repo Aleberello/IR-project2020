@@ -25,7 +25,7 @@ from operator import itemgetter
 class Preprocessor:
 	def __init__(self, filesName):
 		self.fileNames = filesName
-		self.tweets = {}
+		self.tweets = {'tweets': {}, 'frequency': {}}
 		self.freq_text = dict()
 		self.freq_user = dict()
 		self.freq_links = dict()
@@ -149,13 +149,12 @@ class Preprocessor:
 				 hashtags, user_ids, emoji, and URLs;
 				 five corpus_counter of the words, emoji, hashtags, URLs and user_ids and their corresponding frequencies.
 		'''
-		for file in self.fileNames:
+				for file in self.fileNames:
 			self.data = json.load(open(file))
 			for tweet in self.data:
 				if not self.data[tweet]['user_name'] in self.freq_text:
-					self.tweets[self.data[tweet]['user_name']] = {}
-					self.tweets[self.data[tweet]['user_name']]['tweets'] = {}
-					self.tweets[self.data[tweet]['user_name']]['frequency'] = {}
+					self.tweets['tweets'][self.data[tweet]['user_name']] = {}
+					self.tweets['frequency'][self.data[tweet]['user_name']] = {}
 					self.freq_text[self.data[tweet]['user_name']] = Counter()
 					self.freq_emoji[self.data[tweet]['user_name']] = Counter()
 					self.freq_links[self.data[tweet]['user_name']] = Counter()
@@ -167,23 +166,18 @@ class Preprocessor:
 				links = self.identify_links(tweet, self.data[tweet]['text'])
 				hashtags = self.identify_hashtags(tweet, self.data[tweet]['hashtags'])
 				user = self.identify_user(tweet, self.data[tweet]['text'])
-				self.tweets[self.data[tweet]['user_name']]['tweets'][tweet] = {
-					'author': self.data[tweet]['user_name'],
-					'date': self.data[tweet]['date'],
-					'text': self.data[tweet]['text'],
-					'tokenized': tokenized, 'user': user,
-					'hashtags': hashtags, 'emoji': emoji,
-					'links': links
-				}
-
-		for user in self.tweets:
-			self.tweets[user]['frequency'] = {
-				'freq_text': self.freq_text,
-				'freq_user': self.freq_user,
-				'freq_hashtags': self.freq_hashtags,
-				'freq_links': self.freq_links,
-				'freq_emoji': self.freq_emoji
-			}
+				self.tweets['tweets'][self.data[tweet]['user_name']][tweet] = {'author': self.data[tweet]['user_name'],
+																			   'date': self.data[tweet]['date'],
+																		  'text': self.data[tweet]['text'],
+																		  'tokenized': tokenized, 'user': user,
+																		  'hashtags': hashtags, 'emoji': emoji,
+																		  'links': links}
+		
+		self.tweets['frequency']= {'freq_text': self.freq_text,
+								  'freq_user': self.freq_user,
+								  'freq_hashtags': self.freq_hashtags,
+								  'freq_links': self.freq_links,
+								  'freq_emoji': self.freq_emoji}
 		
 		return self.tweets
 	
@@ -266,13 +260,13 @@ class Preprocessor:
 				hnews.append(" ")
 
 		
-		for user in self.tweets:
+		for user in self.tweets['tweets']:
 			st = ""
 			hg = ""
-			
-			for tweet in self.tweets[user]['tweets']:
-				st += " " + self.tweets[user]['tweets'][tweet]['text']
-				users = self.tweets[user]['tweets'][tweet]['user']
+
+			for tweet in self.tweets['tweets'][user]:
+				st += " " + self.tweets['tweets'][user][tweet]['text']
+				users = self.tweets['tweets'][user][tweet]['user']
 				for u in users:
 					hg += " " + u
 			
