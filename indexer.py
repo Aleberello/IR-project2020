@@ -40,6 +40,7 @@ def indexDocuments(data_path, config_path, index_name="my-index"):
         es.indices.delete(index=index_name)
     es.indices.create(index=index_name, body=index_config)
 
+    # Index document with bulk function
     pprint("Indexing documents...")
     progress = tqdm.tqdm(unit="docs", total=len(tweets))
     successes = 0

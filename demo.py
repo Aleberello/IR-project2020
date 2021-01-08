@@ -125,7 +125,7 @@ if __name__ == "__main__":
     #basicQueries()
 
     ## Users profiles extraction providing set of tweets
-    users_tweets_path = ["./datasets/test.json"]
+    users_tweets_path = ["./datasets/group_one.json","./datasets/group_two.json"]
     user_profiles = Preprocessor(users_tweets_path)
 
     ## Avanced queries using users profiles for personalization

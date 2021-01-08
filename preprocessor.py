@@ -6,7 +6,7 @@ import pandas as pd
 import nltk
 import pickle
 import sys
-from os import path
+import os
 import numpy as np
 from nltk import word_tokenize, sent_tokenize, pos_tag
 from nltk.tokenize import WordPunctTokenizer, RegexpTokenizer
@@ -208,16 +208,14 @@ class Preprocessor:
 				new_text.append(self.porter.stem(word[0]))
 		return new_text
 	
-	def get_similarity_score(self, corpus, cnews):
+	def get_similarity_score(self, corpus, cnews, vectoriser):
 		'''
 		Compute and return similarity scores between user's tweets and news's tweets
 		:param corpus: user's tweet on whom will computed the tf-idf; cnews: news's text on whom will computed tf-idf
 		:return: dataframe who contain the similarity score between tweet
 		'''
-		
-		vectoriser = TfidfVectorizer(analyzer=self.preprocess_text, min_df=0.01)
-		
-		X = vectoriser.fit_transform(corpus)
+
+		X = vectoriser.transform(corpus)
 		Y = vectoriser.transform(cnews)
 		
 		similarity = cosine_similarity(X, Y)
@@ -242,9 +240,10 @@ class Preprocessor:
 
 		
 
-		# Try to retrive pre-calculated user profiles
-		pickle_path = './' + '&'.join(sum([re.findall(r'[^\/]+(?=\.)', test) for test in self.fileNames],[])) + '.pickle'
-		import pdb; pdb.set_trace()
+		# Try to retrive pre-processed user profiles tweets
+		pickle_path = './utils/user-profiles/' + '&'.join(sum(
+			[re.findall(r'[^\/]+(?=\.)', test) for test in self.fileNames],[])) + '.pickle'
+		
 		try:
 			self.tweets = pickle.load(open(pickle_path, 'rb'))
 			print("User profiles loaded correctly from " + pickle_path)
@@ -253,6 +252,7 @@ class Preprocessor:
 			print("User profiles tweets not yet pre-processed.")
 			a = self.parser()
 			print("Saving preprocessed user profiles in " + pickle_path)
+			os.makedirs(os.path.dirname(pickle_path), exist_ok=True)
 			pickle.dump(a, open(pickle_path, 'wb'))
 		
 		personalized = {}
@@ -288,12 +288,35 @@ class Preprocessor:
 					users = self.tweets['tweets'][user][tweet]['user']
 					for u in users:
 						hg += " " + u
-				
+
 				corpus = [st]
-				corpus2 = [hg]
+				corpus_m = [hg]
 				
-				Pnews = self.get_similarity_score(corpus, cnews)
-				Hnews = self.get_similarity_score(corpus2, hnews)
+				# Try to retrive pre-calculated user profiles vectorizer
+				vectoriser_path_text = './utils/user-profiles/' + user.replace(" ", "") + '/vect_text.pickle'
+				vectoriser_path_ment = './utils/user-profiles/' + user.replace(" ", "") + '/vect_mentions.pickle'
+				try:
+					vect_t_fit = pickle.load(open(vectoriser_path_text, 'rb'))
+					vect_m_fit = pickle.load(open(vectoriser_path_ment, 'rb'))
+					print("User profile vectorizer loaded.")
+
+				except:
+					print("User profile vectorizer not yet pre-processed.")
+					vectoriser_t = TfidfVectorizer(analyzer=self.preprocess_text, min_df=0.01)
+					vectoriser_m = TfidfVectorizer(analyzer=self.preprocess_text, min_df=0.01)
+
+					vect_t_fit = vectoriser_t.fit(corpus)
+					vect_m_fit = vectoriser_m.fit(corpus_m)
+					print("Saving profile vectorizer in " + vectoriser_path_text)
+					os.makedirs(os.path.dirname(vectoriser_path_text), exist_ok=True)
+					os.makedirs(os.path.dirname(vectoriser_path_ment), exist_ok=True)
+					pickle.dump(vect_t_fit, open(vectoriser_path_text, 'wb'))
+					pickle.dump(vect_m_fit, open(vectoriser_path_ment, 'wb'))
+
+
+				# Computes similarity scores
+				Pnews = self.get_similarity_score(corpus, cnews, vect_t_fit)
+				Hnews = self.get_similarity_score(corpus_m, hnews, vect_m_fit)
 				
 				# Personalized scoring
 				filtered = news['hits']['hits']
