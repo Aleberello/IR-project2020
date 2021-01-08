@@ -52,5 +52,7 @@ pip install requiments.txt
 
 
 Notes:
-- After the first execution the user profile for each user are saved into the test.pickle file to optimize the execution time
-- After the first execution TfidfVectorized object for each user are saved into a .pickle file to optimize the execution time
+- After the first execution the preprocessed tweets of given JSON are saved into JSON_filename.pickle file 
+in /utils/user-profiles optimize the execution time
+- After the first execution TfidfVectorized object for each user are saved into a .pickle file in 
+utils/user-profile/user_name folder to optimize the execution time
