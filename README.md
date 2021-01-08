@@ -9,7 +9,7 @@ Team members:
   
 ### Project structure
 #### preprocessor.py:
-  - Download only for the first execution the following nltk packages: stopword, wordnet, averaged_perceptron_tagger (these are commented on in the first rows of this file)
+  - Download only for the first execution the following nltk packages: stopword, wordnet, averaged_perceptron_tagger (these are commented in the first rows of this file)
   - After the first execution the user profile for each user are saved into the test.pickle file to optimize the execution time
   - After the first execution TfidfVectorized object for each user are saved into a .pickle file to optimize the execution time
 
