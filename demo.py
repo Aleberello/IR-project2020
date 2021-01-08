@@ -141,14 +141,6 @@ def advancedQueries(users_tweets):
                             {"match" : {"text" : "coronavirus"}}
                         ]
                     }})
-
-    #query_res = search(index_name, query={
-    #            "match" : {
-    #                "text" : {
-    #                    "query" : "insect",
-    #                    "analyzer" : "synonym"
-    #                }
-    #            }})
     
     # Personalization re-rank process
     personalized_res = users_tweets.personalize_query(query_res, user)
