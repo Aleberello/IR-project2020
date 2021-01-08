@@ -122,11 +122,9 @@ def advancedQueries(users_tweets):
                         ]
                     }})
     # Personalization re-rank process
-    #personalized_res = users_tweets.personalize_query(query_res, user)
-    
+    personalized_res = users_tweets.personalize_query(query_res, user)
     #printRes(query_res)
-    #printResAdv(personalized_res)
-
+    printResAdv(personalized_res)
 
 
     ## USER CASE 4 - Expand the search adding synonyms of the words in the query ##
@@ -181,7 +179,7 @@ if __name__ == "__main__":
     #indexDocuments(data_path, config_path, index_name)
 
     ## Basic queries on Elasticsearch
-    #basicQueries()
+    basicQueries()
 
     ## User tweets-based personalization
     users_tweets_path = ["./datasets/group_one.json","./datasets/group_two.json"]
