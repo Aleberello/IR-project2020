@@ -25,39 +25,61 @@ def basicQueries():
 
     pprint(r("BASIC QUERIES DEMO"))
 
-    ## USER CASE 1 - Textual search on a specific field using keywords
-
-    # Query 1 - ...
+    ## USER CASE 1 - Textual search on a specific field using keywords ##
+    
+    # Query 1 - about politics topic
     search(index_name, query={
                 "match" : {
-                    "text" : "nolan"
+                    "text" : "USA elections fraud claims"
                 }})
 
+    # Query 2 - about science topic
+    search(index_name, query={
+                "match" : {
+                    "text" : "NASA started new mission on mars"
+                }})    
+
+    # Query 3 - about other topics
     search(index_name, query={
                 "match_phrase" : {
-                    "text" : "Nolan film's"
+                    "text" : "latest products relased by Apple in 2020"
                 }})    
 
 
-    ## USER CASE 2 - Textual search on a combination of fields
+    ## USER CASE 2 - Textual search on a combination of fields ##
+
+    # Query 4 - tweets by sport news accounts that talk about NBA 
     search(index_name, query={
                 "bool": {
                     "must": [
-                        {"match": {"screen_name" : "newscientist"}},
-                        {"match": {"text" : "insect"}}
+                        { "bool": {
+                            "should" : [
+                                { "match": {"screen_name":"YahooSports"} },
+                                { "match": {"screen_name":"FOXSports"} },
+                                { "match": {"screen_name":"cnnsport"} }
+                            ],
+                            "minimum_should_match": 1
+                        }},
+                        {"match": {"text":"LeBron James pays tribute to Kobe Bryant"}}
                     ]
                 }})
 
-    # Range query example midnight on New Year's Eve
-    search(index_name, query={
-            "range": {
-                "date" : {
-                    "gt" : "Thu Dec 31 23:45:00 +0000 2020",
-                    "lte" : "Fri Jan 01 01:00:00 +0000 2021"                    
-                }
-            }})
 
+    # Query 5 - range query on midnight on New Year's Eve about wishes
+    search(index_name, query={
+                "bool" : {
+                    "must" : [
+                        { "range": {
+                            "date" : {
+                                "gt" : "Sat Dec 12 00:00:00 +0000 2020",
+                                "lte" : "Mon Dec 14 23:00:00 +0000 2020"                    
+                            }
+                        }},
+                        {"match": {"text":"Covid19 Pfizer vaccine approvals"}}
+                    ]
+                }})
     
+
 
 def advancedQueries(users_tweets):
     '''
@@ -65,38 +87,60 @@ def advancedQueries(users_tweets):
     considered.
     '''
 
-    def search(index, query=None, n_res=10):
+    def search(index, query=None, n_res=50):
         es = Elasticsearch()
         res = es.search(index=index_name, body={
             "query" : query
         }, size=n_res)
 
-        pprint(g("%d documents found (showing first %d)" % (res['hits']['total']['value'], n_res)))
         return res
 
 
     pprint(r("ADVANCED QUERIES DEMO"))
 
-    ## USER CASE 3 - Rank the tweets taking into account the user profile
+    ## USER CASE 3 - Rank the tweets taking into account the user profile ##
 
     # If user list is empty personalize_query retrive the search personalized for each user in dataset, else it provides
     # personalization for only the users specified.
-    user = ['Barack Obama']
+    # Avaiable Twitter users in dataset:
+    #   - Group one (scientists)
+            # Neil deGrasse Tyson
+            # Katie Mack
+            # Brian Cox
+    #   - Group two (politicians)
+            # Barack Obama
+            # Nancy Pelosi
+            # Joe Biden
 
+    user = ['Joe Biden','Brian Cox']
     # ES standard query
     query_res = search(index_name, query={
                     "match" : {
-                        "text" : "nolan"
+                        "text" : "empty space in the universe"
                     }})
-
     # Personalization re-rank process
     personalized_res = users_tweets.personalize_query(query_res, user)
-
+    
+    #printRes(query_res)
     printResAdv(personalized_res)
 
+    import pdb; pdb.set_trace()
 
-    ## USER CASE 4 - Expand the search adding synonyms of the words in the query
 
+    ## USER CASE 4 - Expand the search adding synonyms of the words in the query ##
+
+    # Query  - expanding previous query with synonyms
+    query_res = search(index_name, query={
+                "match" : {
+                    "text" : {
+                        "query" : "insect",
+                        "analyzer" : "synonym"
+                    }
+                }})
+    # Personalization re-rank process
+    personalized_res = users_tweets.personalize_query(query_res, user)
+    #printRes(query_res)
+    printResAdv(personalized_res)
 
 
 
@@ -140,4 +184,3 @@ if __name__ == "__main__":
 
     ## Avanced queries using users tweets for personalization
     advancedQueries(users_tweets)
-    

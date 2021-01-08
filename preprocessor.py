@@ -223,7 +223,7 @@ class Preprocessor:
 		similarity = cosine_similarity(X, Y)
 		
 		Pnews = pd.DataFrame(Y.toarray())
-		Pnews['score'] = similarity[0]
+		Pnews['score'] = preprocessing.minmax_scale(similarity[0])
 		
 		return Pnews
 	
@@ -316,18 +316,20 @@ class Preprocessor:
 
 				# Computes similarity scores
 				Pnews = self.get_similarity_score(corpus, cnews, vect_t_fit)
-				mnews = self.get_similarity_score(corpus_m, mnews, vect_m_fit)
-				
+				Mnews = self.get_similarity_score(corpus_m, mnews, vect_m_fit)
+
 				# Personalized scoring
 				filtered = news['hits']['hits']
 				for i, n in enumerate(filtered):
-					n['new_score'] = np.around(0.2 * n['_score'] + 0.3 * Pnews['score'][i] + 0.5 * mnews['score'][i], 
+					n['new_score'] = np.around(0.2 * n['_score'] + 0.4 * Pnews['score'][i] + 0.4 * Mnews['score'][i], 
 												decimals=6)
 
-				
-				# Re-ranking Elasticsearch query results
+				# Re-ranking Elasticsearch query results and return first 10 results
 				ordered = sorted(filtered, key=itemgetter('new_score'), reverse=True)
-				personalized[user] = {'news': ordered}
+				if len(ordered) > 10:
+					personalized[user] = {'news': ordered[:10]}
+				else:
+					personalized[user] = {'news': ordered}
 
 
 		if not personalized:

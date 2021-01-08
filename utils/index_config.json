@@ -12,7 +12,7 @@
                 },
                 "synonym" : {
                     "tokenizer" : "standard",
-                    "filter" : ["syn_wordnet"]
+                    "filter" : ["lowercase", "syn_wordnet"]
                 }
             },
             "normalizer": {
