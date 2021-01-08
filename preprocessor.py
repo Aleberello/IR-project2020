@@ -321,7 +321,7 @@ class Preprocessor:
 				# Personalized scoring
 				filtered = news['hits']['hits']
 				for i, n in enumerate(filtered):
-					n['new_score'] = np.around(0.2 * n['_score'] + 0.4 * Pnews['score'][i] + 0.4 * Mnews['score'][i], 
+					n['new_score'] = np.around(0.2 * n['_score'] + 0.5 * Pnews['score'][i] + 0.3 * Mnews['score'][i], 
 												decimals=6)
 
 				# Re-ranking Elasticsearch query results and return first 10 results

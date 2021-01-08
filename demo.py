@@ -87,7 +87,7 @@ def advancedQueries(users_tweets):
     considered.
     '''
 
-    def search(index, query=None, n_res=50):
+    def search(index, query=None, n_res=100):
         es = Elasticsearch()
         res = es.search(index=index_name, body={
             "query" : query
@@ -115,28 +115,41 @@ def advancedQueries(users_tweets):
     user = ['Joe Biden','Brian Cox']
     # ES standard query
     query_res = search(index_name, query={
-                    "match" : {
-                        "text" : "empty space in the universe"
+                    "bool" : {
+                        "must" : [
+                            {"match" : {"text" : "What this pandemic year can teach us about"}},
+                            {"match" : {"text" : "coronavirus"}}
+                        ]
                     }})
     # Personalization re-rank process
-    personalized_res = users_tweets.personalize_query(query_res, user)
+    #personalized_res = users_tweets.personalize_query(query_res, user)
     
     #printRes(query_res)
-    printResAdv(personalized_res)
+    #printResAdv(personalized_res)
 
-    import pdb; pdb.set_trace()
 
 
     ## USER CASE 4 - Expand the search adding synonyms of the words in the query ##
 
     # Query  - expanding previous query with synonyms
     query_res = search(index_name, query={
-                "match" : {
-                    "text" : {
-                        "query" : "insect",
-                        "analyzer" : "synonym"
-                    }
-                }})
+                    "bool" : {
+                        "must" : [
+                            {"match" : {"text" : {
+                                "query" : "What this pandemic year can teach us about",
+                                "analyzer" : "synonym"}}},
+                            {"match" : {"text" : "coronavirus"}}
+                        ]
+                    }})
+
+    #query_res = search(index_name, query={
+    #            "match" : {
+    #                "text" : {
+    #                    "query" : "insect",
+    #                    "analyzer" : "synonym"
+    #                }
+    #            }})
+    
     # Personalization re-rank process
     personalized_res = users_tweets.personalize_query(query_res, user)
     #printRes(query_res)
